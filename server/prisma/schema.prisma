@@ -1,0 +1,178 @@
+// Prisma schema for mangas-dashboard
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum MangaStatus {
+  ONGOING
+  COMPLETED
+  HIATUS
+}
+
+enum AgeRating {
+  EVERYONE
+  TEEN
+  MATURE
+  ADULT
+}
+
+enum RequestStatus {
+  PENDING
+  PROCESSED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  isActive     Boolean  @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  interactions UserMangaInteraction[]
+  refreshTokens RefreshToken[]
+  deletionRequests UserDeletionRequest[]
+}
+
+model UserDeletionRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String?
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  mangas    MangaCategory[]
+}
+
+model Manga {
+  id          String          @id @default(cuid())
+  title       String
+  slug        String          @unique
+  description String?
+  coverUrl    String?
+  author      String?
+  status      MangaStatus     @default(ONGOING)
+  ageRating   AgeRating       @default(EVERYONE)
+  isModerated Boolean         @default(false)
+  isAdult     Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relación opcional a Source
+  source       Source?  @relation(fields: [sourceId], references: [id])
+  sourceId     String?
+
+  categories  MangaCategory[]
+  chapters    Chapter[]
+  stats       Stat?
+  interactions UserMangaInteraction[]
+}
+
+model MangaCategory {
+  manga      Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  mangaId    String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId String
+
+  @@id([mangaId, categoryId])
+}
+
+model Chapter {
+  id          String      @id @default(cuid())
+  manga       Manga       @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  mangaId     String
+  number      Decimal
+  title       String?
+  url_capitulo String?
+  releaseDate DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  pages       ChapterPage[]
+}
+
+model ChapterPage {
+  id         String   @id @default(cuid())
+  chapter    Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId  String
+  pageNumber Int
+  imageUrl   String
+
+  @@unique([chapterId, pageNumber])
+}
+
+model Stat {
+  id              String   @id @default(cuid())
+  manga           Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  mangaId         String   @unique
+  viewsCount      Int      @default(0)
+  likesCount      Int      @default(0)
+  favoritesCount  Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+model UserMangaInteraction {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  manga     Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  mangaId   String
+  type      InteractionType
+  createdAt DateTime @default(now())
+
+  @@index([userId, mangaId])
+}
+
+enum InteractionType {
+  VIEW
+  LIKE
+  FAVORITE
+}
+
+model Source {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  baseUrl     String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mangas      Manga[]
+}
