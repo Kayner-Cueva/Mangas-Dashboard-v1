@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize([Role.ADMIN]));
+router.use(authorize([Role.ADMIN, Role.EDITOR]));
 
 router.get('/summary', async (_req, res, next) => {
   try {
