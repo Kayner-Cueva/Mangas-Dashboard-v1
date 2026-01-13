@@ -169,17 +169,6 @@ const CheckboxLabel = styled.label`
   }
 `
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: ${theme.spacing.xxl};
-  color: ${theme.colors.text.secondary};
-`
-
-const LoadingState = styled.div`
-  text-align: center;
-  padding: ${theme.spacing.xxl};
-  color: ${theme.colors.text.secondary};
-`
 
 const mangaSchema = z.object({
   titulo: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
