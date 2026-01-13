@@ -107,7 +107,11 @@ const RecentTitle = styled.h2`
   margin-bottom: ${theme.spacing.md};
 `
 
+import { useAuth } from '../../context/AuthContext'
+
 const AdminDashboard = () => {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'ADMIN'
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sourcesCount, setSourcesCount] = useState(0)
@@ -184,7 +188,7 @@ const AdminDashboard = () => {
           'Géneros disponibles'
         )}
 
-        {renderStatCard(
+        {isAdmin && renderStatCard(
           'Usuarios',
           stats?.totalUsers,
           <FiUsers size={24} />,
@@ -211,18 +215,18 @@ const AdminDashboard = () => {
         <RecentCard>
           <RecentTitle>Información del Sistema</RecentTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-            <p style={{ color: theme.colors.text.secondary }}>
+            <div style={{ color: theme.colors.text.secondary }}>
               <strong>Versión:</strong> 1.0.0
-            </p>
-            <p style={{ color: theme.colors.text.secondary }}>
+            </div>
+            <div style={{ color: theme.colors.text.secondary }}>
               <strong>Base de datos:</strong> PostgreSQL (Prisma + Express)
-            </p>
-            <p style={{ color: theme.colors.text.secondary }}>
+            </div>
+            <div style={{ color: theme.colors.text.secondary }}>
               <strong>Última actualización:</strong> {new Date().toLocaleDateString('es-ES')}
-            </p>
-            <p style={{ color: theme.colors.text.secondary }}>
+            </div>
+            <div style={{ color: theme.colors.text.secondary }}>
               <strong>Fuentes registradas:</strong> {loading ? <SkeletonRect width="30px" height="1rem" style={{ display: 'inline-block' }} /> : sourcesCount}
-            </p>
+            </div>
           </div>
         </RecentCard>
       </RecentSection>

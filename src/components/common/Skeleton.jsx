@@ -14,7 +14,7 @@ export const SkeletonBase = styled.div`
   display: inline-block;
   height: ${props => props.height || '1rem'};
   width: ${props => props.width || '100%'};
-  border-radius: ${props => props.borderRadius || theme.borderRadius.sm};
+  border-radius: ${props => props.$borderRadius || theme.borderRadius.sm};
   background-color: ${theme.colors.bg.light};
   background-image: linear-gradient(
     90deg,

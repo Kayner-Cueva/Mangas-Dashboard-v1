@@ -10,13 +10,28 @@ router.use(authorize([Role.ADMIN]));
 
 router.get('/summary', async (_req, res, next) => {
   try {
-    const [mangas, chapters, categories, views] = await Promise.all([
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [mangas, chapters, categories, users, recentMangas, recentChapters, views] = await Promise.all([
       prisma.manga.count(),
       prisma.chapter.count(),
       prisma.category.count(),
+      prisma.user.count(),
+      prisma.manga.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.chapter.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
       prisma.stat.aggregate({ _sum: { viewsCount: true } }),
     ]);
-    res.json({ mangas, chapters, categories, totalViews: views._sum.viewsCount || 0 });
+
+    res.json({
+      mangas,
+      chapters,
+      categories,
+      users,
+      recentMangas,
+      recentChapters,
+      totalViews: views._sum.viewsCount || 0
+    });
   } catch (err) { next(err); }
 });
 

@@ -57,6 +57,8 @@ const SourcesManager = () => {
   const [editingSource, setEditingSource] = useState(null)
   const { user } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
+  const isEditor = user?.role === 'EDITOR'
+  const canEdit = isAdmin || isEditor
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(sourceSchema),
@@ -167,7 +169,7 @@ const SourcesManager = () => {
       <Container>
         <Header>
           <Title>Fuentes de Mangas</Title>
-          <SkeletonRect width="150px" height="40px" borderRadius={theme.borderRadius.md} />
+          <SkeletonRect width="150px" height="40px" $borderRadius={theme.borderRadius.md} />
         </Header>
         <TableContainer>
           <Table>
@@ -199,7 +201,7 @@ const SourcesManager = () => {
     <Container>
       <Header>
         <Title>Fuentes de Mangas</Title>
-        {isAdmin && (
+        {canEdit && (
           <Button onClick={() => handleOpenModal()}>
             <FiPlus size={20} /> Nueva Fuente
           </Button>
@@ -241,29 +243,33 @@ const SourcesManager = () => {
                 </Td>
                 <Td>{src.description || '-'}</Td>
                 <Td>
-                  <Badge active={src.isActive}>
+                  <Badge $active={src.isActive}>
                     {src.isActive ? 'Activa' : 'Inactiva'}
                   </Badge>
                 </Td>
                 <Td>
-                  {isAdmin && (
+                  {(isAdmin || isEditor) && (
                     <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-                      <Button
-                        variant="outline"
-                        size="small"
-                        onClick={() => handleOpenModal(src)}
-                        title="Editar"
-                      >
-                        <FiEdit2 size={16} />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="small"
-                        onClick={() => handleDelete(src.id)}
-                        title="Eliminar"
-                      >
-                        <FiTrash2 size={16} />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="outline"
+                          size="small"
+                          onClick={() => handleOpenModal(src)}
+                          title="Editar"
+                        >
+                          <FiEdit2 size={16} />
+                        </Button>
+                      )}
+                      {(isAdmin || (isEditor && src.creatorId === user.id)) && (
+                        <Button
+                          variant="danger"
+                          size="small"
+                          onClick={() => handleDelete(src.id)}
+                          title="Eliminar"
+                        >
+                          <FiTrash2 size={16} />
+                        </Button>
+                      )}
                     </div>
                   )}
                 </Td>

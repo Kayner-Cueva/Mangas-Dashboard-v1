@@ -48,6 +48,12 @@ model User {
   interactions UserMangaInteraction[]
   refreshTokens RefreshToken[]
   deletionRequests UserDeletionRequest[]
+  
+  // Contenido creado
+  mangas       Manga[]
+  chapters     Chapter[]
+  categories   Category[]
+  sources      Source[]
 }
 
 model UserDeletionRequest {
@@ -78,6 +84,10 @@ model Category {
   updatedAt DateTime  @updatedAt
 
   mangas    MangaCategory[]
+
+  // Propiedad
+  creator      User?    @relation(fields: [creatorId], references: [id])
+  creatorId    String?
 }
 
 model Manga {
@@ -102,6 +112,10 @@ model Manga {
   chapters    Chapter[]
   stats       Stat?
   interactions UserMangaInteraction[]
+
+  // Propiedad
+  creator      User?    @relation(fields: [creatorId], references: [id])
+  creatorId    String?
 }
 
 model MangaCategory {
@@ -125,6 +139,10 @@ model Chapter {
   updatedAt   DateTime    @updatedAt
 
   pages       ChapterPage[]
+
+  // Propiedad
+  creator      User?    @relation(fields: [creatorId], references: [id])
+  creatorId    String?
 }
 
 model ChapterPage {
@@ -175,4 +193,8 @@ model Source {
   updatedAt   DateTime @updatedAt
 
   mangas      Manga[]
+
+  // Propiedad
+  creator      User?    @relation(fields: [creatorId], references: [id])
+  creatorId    String?
 }

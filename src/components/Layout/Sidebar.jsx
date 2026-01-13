@@ -14,7 +14,7 @@ import {
 } from 'react-icons/fi'
 
 const SidebarContainer = styled.aside`
-  width: 260px;
+  width: ${props => props.$isCollapsed ? '80px' : '260px'};
   min-height: 100vh;
   background-color: ${theme.colors.bg.dark};
   color: ${theme.colors.text.light};
@@ -24,8 +24,10 @@ const SidebarContainer = styled.aside`
   left: 0;
   top: 0;
   z-index: 100;
+  transition: width ${theme.transitions.normal};
   
   @media (max-width: ${theme.breakpoints.tablet}) {
+    width: 260px;
     transform: translateX(${props => props.$isOpen ? '0' : '-100%'});
     transition: transform ${theme.transitions.normal};
     box-shadow: ${theme.shadows.xl};
@@ -37,7 +39,7 @@ const SidebarHeader = styled.div`
   border-bottom: 1px solid ${theme.colors.border.dark};
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: ${props => props.$isCollapsed ? 'center' : 'space-between'};
 `
 
 const Logo = styled.div`
@@ -46,6 +48,32 @@ const Logo = styled.div`
   gap: ${theme.spacing.md};
   font-size: 1.25rem;
   font-weight: 700;
+  
+  span {
+    display: ${props => props.$isCollapsed ? 'none' : 'block'};
+  }
+`
+
+const ToggleButton = styled.button`
+  background: none;
+  border: none;
+  color: ${theme.colors.text.secondary};
+  cursor: pointer;
+  padding: ${theme.spacing.xs};
+  border-radius: ${theme.borderRadius.sm};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all ${theme.transitions.fast};
+  
+  &:hover {
+    background-color: ${theme.colors.bg.cardDark};
+    color: ${theme.colors.text.light};
+  }
+  
+  @media (max-width: ${theme.breakpoints.tablet}) {
+    display: none;
+  }
 `
 
 const CloseButton = styled.button`
@@ -87,6 +115,7 @@ const NavItem = styled.li`
 const NavLinkStyled = styled(NavLink)`
   display: flex;
   align-items: center;
+  justify-content: ${props => props.$isCollapsed ? 'center' : 'flex-start'};
   gap: ${theme.spacing.md};
   padding: ${theme.spacing.md};
   border-radius: ${theme.borderRadius.md};
@@ -105,9 +134,14 @@ const NavLinkStyled = styled(NavLink)`
     color: white;
   }
   
+  span {
+    display: ${props => props.$isCollapsed ? 'none' : 'block'};
+  }
+  
   svg {
     width: 20px;
     height: 20px;
+    min-width: 20px;
   }
 `
 
@@ -121,6 +155,7 @@ const UserInfo = styled.div`
   margin-bottom: ${theme.spacing.md};
   border-radius: ${theme.borderRadius.md};
   background-color: ${theme.colors.bg.cardDark};
+  display: ${props => props.$isCollapsed ? 'none' : 'block'};
 `
 
 const UserEmail = styled.div`
@@ -133,6 +168,7 @@ const LogoutButton = styled.button`
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: ${props => props.$isCollapsed ? 'center' : 'flex-start'};
   gap: ${theme.spacing.md};
   padding: ${theme.spacing.md};
   border-radius: ${theme.borderRadius.md};
@@ -149,9 +185,14 @@ const LogoutButton = styled.button`
     border-color: ${theme.colors.error};
   }
   
+  span {
+    display: ${props => props.$isCollapsed ? 'none' : 'block'};
+  }
+  
   svg {
     width: 20px;
     height: 20px;
+    min-width: 20px;
   }
 `
 
@@ -170,7 +211,7 @@ const Overlay = styled.div`
   }
 `
 
-export const Sidebar = ({ isOpen, onClose }) => {
+export const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const { user, signOut } = useAuth()
 
   const handleLogout = async () => {
@@ -180,64 +221,71 @@ export const Sidebar = ({ isOpen, onClose }) => {
   return (
     <>
       <Overlay $isOpen={isOpen} onClick={onClose} />
-      <SidebarContainer $isOpen={isOpen}>
-        <SidebarHeader>
-          <Logo>
+      <SidebarContainer $isOpen={isOpen} $isCollapsed={isCollapsed}>
+        <SidebarHeader $isCollapsed={isCollapsed}>
+          <Logo $isCollapsed={isCollapsed}>
             <FiBook size={24} />
-            <span>Manga Admin</span>
+            <span>Panel Mangas</span>
           </Logo>
-          <CloseButton onClick={onClose}>
-            <FiX size={20} />
-          </CloseButton>
+          {!isCollapsed && (
+            <CloseButton onClick={onClose}>
+              <FiX size={20} />
+            </CloseButton>
+          )}
+          <ToggleButton onClick={onToggleCollapse}>
+            <FiMenu size={20} />
+          </ToggleButton>
         </SidebarHeader>
 
         <Nav>
           <NavList>
             <NavItem>
-              <NavLinkStyled to="/dashboard" onClick={onClose}>
-                <FiLayout /> Dashboard
+              <NavLinkStyled to="/dashboard" onClick={onClose} $isCollapsed={isCollapsed}>
+                <FiLayout /> <span>Dashboard</span>
               </NavLinkStyled>
             </NavItem>
             <NavItem>
-              <NavLinkStyled to="/mangas" onClick={onClose}>
-                <FiBook /> Mangas
+              <NavLinkStyled to="/mangas" onClick={onClose} $isCollapsed={isCollapsed}>
+                <FiBook /> <span>Mangas</span>
               </NavLinkStyled>
             </NavItem>
             <NavItem>
-              <NavLinkStyled to="/chapters" onClick={onClose}>
-                <FiFileText /> Capítulos
+              <NavLinkStyled to="/chapters" onClick={onClose} $isCollapsed={isCollapsed}>
+                <FiFileText /> <span>Capítulos</span>
               </NavLinkStyled>
             </NavItem>
-            {user?.role === 'ADMIN' && (
+            {(user?.role === 'ADMIN' || user?.role === 'EDITOR') && (
               <>
                 <NavItem>
-                  <NavLinkStyled to="/categories" onClick={onClose}>
-                    <FiTag /> Categorías
+                  <NavLinkStyled to="/categories" onClick={onClose} $isCollapsed={isCollapsed}>
+                    <FiTag /> <span>Categorías</span>
                   </NavLinkStyled>
                 </NavItem>
                 <NavItem>
-                  <NavLinkStyled to="/sources" onClick={onClose}>
-                    <FiTag /> Fuentes
-                  </NavLinkStyled>
-                </NavItem>
-                <NavItem>
-                  <NavLinkStyled to="/users" onClick={onClose}>
-                    <FiUsers /> Usuarios
+                  <NavLinkStyled to="/sources" onClick={onClose} $isCollapsed={isCollapsed}>
+                    <FiTag /> <span>Fuentes</span>
                   </NavLinkStyled>
                 </NavItem>
               </>
+            )}
+            {user?.role === 'ADMIN' && (
+              <NavItem>
+                <NavLinkStyled to="/users" onClick={onClose} $isCollapsed={isCollapsed}>
+                  <FiUsers /> <span>Usuarios</span>
+                </NavLinkStyled>
+              </NavItem>
             )}
           </NavList>
         </Nav>
 
         <SidebarFooter>
           {user && (
-            <UserInfo>
+            <UserInfo $isCollapsed={isCollapsed}>
               <UserEmail>{user.email}</UserEmail>
             </UserInfo>
           )}
-          <LogoutButton onClick={handleLogout}>
-            <FiLogOut /> Cerrar Sesión
+          <LogoutButton onClick={handleLogout} $isCollapsed={isCollapsed}>
+            <FiLogOut /> <span>Cerrar Sesión</span>
           </LogoutButton>
         </SidebarFooter>
       </SidebarContainer>

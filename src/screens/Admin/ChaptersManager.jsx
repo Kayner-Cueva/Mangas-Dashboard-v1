@@ -112,8 +112,11 @@ const ChaptersManager = () => {
 
   useEffect(() => {
     loadChapters()
-    loadMangas()
   }, [currentPage])
+
+  useEffect(() => {
+    loadMangas()
+  }, [])
 
   const loadChapters = async () => {
     setLoading(true)
@@ -129,7 +132,7 @@ const ChaptersManager = () => {
   }
 
   const loadMangas = async () => {
-    const { data, error } = await getAllMangas()
+    const { data, error } = await getAllMangas({ limit: 1000 })
     if (!error && data) {
       setMangas(data)
     }
@@ -211,7 +214,7 @@ const ChaptersManager = () => {
       <Container>
         <Header>
           <Title>Gestión de Capítulos</Title>
-          <SkeletonRect width="150px" height="40px" borderRadius={theme.borderRadius.md} />
+          <SkeletonRect width="150px" height="40px" $borderRadius={theme.borderRadius.md} />
         </Header>
         <TableContainer>
           <Table>
@@ -291,7 +294,7 @@ const ChaptersManager = () => {
                         <FiEdit2 size={16} />
                       </Button>
                     )}
-                    {isAdmin && (
+                    {(isAdmin || (user?.role === 'EDITOR' && chapter.creatorId === user.id)) && (
                       <Button
                         variant="danger"
                         size="small"
@@ -365,7 +368,7 @@ const ChaptersManager = () => {
               <option value="">Seleccionar manga</option>
               {mangas.map((manga) => (
                 <option key={manga.id} value={manga.id}>
-                  {manga.titulo}
+                  {manga.title || manga.titulo}
                 </option>
               ))}
             </Select>

@@ -75,40 +75,6 @@ const Form = styled.form`
   gap: ${theme.spacing.md};
 `
 
-const AlertBanner = styled.div`
-  background-color: ${theme.colors.warning}20;
-  border: 1px solid ${theme.colors.warning};
-  border-radius: ${theme.borderRadius.md};
-  padding: ${theme.spacing.md};
-  margin-bottom: ${theme.spacing.lg};
-  display: flex;
-  align-items: flex-start;
-  gap: ${theme.spacing.sm};
-  color: ${theme.colors.text.primary};
-`
-
-const AlertIcon = styled.div`
-  color: ${theme.colors.warning};
-  flex-shrink: 0;
-  margin-top: 2px;
-`
-
-const AlertContent = styled.div`
-  flex: 1;
-  font-size: 0.875rem;
-  line-height: 1.5;
-`
-
-const AlertTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: ${theme.spacing.xs};
-  color: ${theme.colors.warning};
-`
-
-const AlertText = styled.div`
-  color: ${theme.colors.text.secondary};
-`
-
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -134,7 +100,8 @@ const Login = () => {
         toast.error('Las contraseñas no coinciden')
         return
       }
-      const { error } = await signUp(email, password)
+      // HARDCODED EDITOR ROLE
+      const { error } = await signUp(email, password, 'EDITOR')
       setLoading(false)
       if (error) {
         toast.error(error.message || 'Error al registrar')
@@ -150,11 +117,19 @@ const Login = () => {
         }
       }
     } else {
-      const { error } = await signIn(email, password)
+      const { data, error } = await signIn(email, password)
       setLoading(false)
+
       if (error) {
         toast.error(error.message || 'Error al iniciar sesión')
       } else {
+        // BLOCK ADMINS FROM EDITOR LOGIN
+        const userRole = data?.user?.role;
+        if (userRole === 'ADMIN') {
+          toast.error('Acceso restringido. Por favor utilice el portal de administración.')
+          await signIn(null, null) // Force logout
+          return
+        }
         toast.success('¡Bienvenido!')
         navigate('/dashboard')
       }
@@ -171,8 +146,7 @@ const Login = () => {
         </Logo>
         <Title>Manga Dashboard</Title>
         <Subtitle>{isRegister ? 'Crea tu cuenta para continuar' : 'Inicia sesión para continuar'}</Subtitle>
-        
-                
+
         <Form onSubmit={handleSubmit}>
           <Input
             label="Email"
@@ -183,7 +157,7 @@ const Login = () => {
             required
             autoComplete="email"
           />
-          
+
           <Input
             label="Contraseña"
             type="password"
@@ -205,7 +179,7 @@ const Login = () => {
               autoComplete="new-password"
             />
           )}
-          
+
           <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: theme.spacing.md }}>
             <FiLogIn size={20} /> {loading ? (isRegister ? 'Creando cuenta...' : 'Iniciando sesión...') : (isRegister ? 'Crear Cuenta' : 'Iniciar Sesión')}
           </Button>
@@ -220,4 +194,3 @@ const Login = () => {
 }
 
 export default Login
-

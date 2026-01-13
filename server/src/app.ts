@@ -9,17 +9,18 @@ dotenv.config();
 
 const app = express();
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' }
-});
-
-app.use(limiter);
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Aumentado para desarrollo
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+app.use(limiter);
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));

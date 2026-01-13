@@ -13,8 +13,9 @@ const LayoutContainer = styled.div`
 
 const MainContent = styled.main`
   flex: 1;
-  margin-left: 260px;
+  margin-left: ${props => props.$isCollapsed ? '80px' : '260px'};
   min-height: 100vh;
+  transition: margin-left ${theme.transitions.normal};
   
   @media (max-width: ${theme.breakpoints.tablet}) {
     margin-left: 0;
@@ -63,11 +64,17 @@ const PageTitle = styled.h1`
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
     <LayoutContainer>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <MainContent>
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+      />
+      <MainContent $isCollapsed={isCollapsed}>
         <MobileHeader>
           <MenuButton onClick={() => setSidebarOpen(!sidebarOpen)}>
             <FiMenu size={20} />

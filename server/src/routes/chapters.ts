@@ -71,6 +71,7 @@ router.post('/manga/:mangaId', async (req, res, next) => {
         title: data.title,
         url_capitulo: data.url_capitulo,
         releaseDate: data.releaseDate ? new Date(data.releaseDate) : undefined,
+        creatorId: (req as any).user.id,
         pages: { create: data.pages?.map(p => ({ pageNumber: p.pageNumber, imageUrl: p.imageUrl })) || [] },
       },
     });
@@ -104,6 +105,20 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const user = (req as any).user;
+
+    const chapter = await prisma.chapter.findUnique({
+      where: { id },
+      select: { creatorId: true }
+    });
+
+    if (!chapter) return res.status(404).json({ error: 'Not found' });
+
+    // Si es EDITOR, solo puede borrar si es el creador
+    if (user.role === Role.EDITOR && chapter.creatorId !== user.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este capítulo' });
+    }
+
     await prisma.chapter.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }

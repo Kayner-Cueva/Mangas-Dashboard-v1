@@ -13,6 +13,7 @@ const REFRESH_TOKEN_EXPIRES_DAYS = 7;
 const RegisterSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  role: z.enum(['ADMIN', 'EDITOR', 'USER']).optional(),
 });
 
 const LoginSchema = z.object({
@@ -47,7 +48,7 @@ const generateTokens = async (userId: string, role: Role) => {
 
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password } = RegisterSchema.parse(req.body);
+    const { email, password, role } = RegisterSchema.parse(req.body);
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return res.status(409).json({ error: 'Email already in use' });
 
@@ -56,7 +57,7 @@ router.post('/register', async (req, res, next) => {
       data: {
         email,
         passwordHash,
-        role: Role.ADMIN // First user as ADMIN or keep it simple for now
+        role: role || Role.EDITOR // Default to EDITOR if not specified
       }
     });
 
@@ -115,22 +116,17 @@ router.post('/refresh', async (req, res, next) => {
       return res.status(403).json({ error: 'Account is deactivated' });
     }
 
-    // Rotate token: revoke old one, create new one
-    await prisma.refreshToken.update({
-      where: { id: dbToken.id },
-      data: { revokedAt: new Date() }
+    // Generate ONLY a new access token (Stable Refresh Token approach)
+    const accessToken = jwt.sign(
+      { sub: dbToken.user.id, role: dbToken.user.role },
+      process.env.JWT_SECRET || 'dev_access',
+      { expiresIn: ACCESS_TOKEN_EXPIRES }
+    );
+
+    res.json({
+      accessToken,
+      user: { id: dbToken.user.id, email: dbToken.user.email, role: dbToken.user.role }
     });
-
-    const { accessToken, refreshToken: newRefreshToken } = await generateTokens(dbToken.user.id, dbToken.user.role);
-
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000
-    });
-
-    res.json({ accessToken });
   } catch (err) {
     res.status(401).json({ error: 'Invalid refresh token' });
   }

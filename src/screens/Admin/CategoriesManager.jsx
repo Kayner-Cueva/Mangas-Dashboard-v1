@@ -67,6 +67,8 @@ const CategoriesManager = () => {
   const [editingCategory, setEditingCategory] = useState(null)
   const { user } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
+  const isEditor = user?.role === 'EDITOR'
+  const canEdit = isAdmin || isEditor
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(categorySchema),
@@ -178,7 +180,7 @@ const CategoriesManager = () => {
       <Container>
         <Header>
           <Title>Gestión de Categorías</Title>
-          <SkeletonRect width="150px" height="40px" borderRadius={theme.borderRadius.md} />
+          <SkeletonRect width="150px" height="40px" $borderRadius={theme.borderRadius.md} />
         </Header>
         <TableContainer>
           <Table>
@@ -208,7 +210,7 @@ const CategoriesManager = () => {
     <Container>
       <Header>
         <Title>Gestión de Categorías</Title>
-        {isAdmin && (
+        {canEdit && (
           <Button onClick={() => handleOpenModal()}>
             <FiPlus size={20} /> Nueva Categoría
           </Button>
@@ -245,8 +247,8 @@ const CategoriesManager = () => {
                 <Td><code>{category.slug}</code></Td>
                 <Td>{category.description || '-'}</Td>
                 <Td>
-                  {isAdmin && (
-                    <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                  <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                    {canEdit && (
                       <Button
                         variant="outline"
                         size="small"
@@ -255,6 +257,8 @@ const CategoriesManager = () => {
                       >
                         <FiEdit2 size={16} />
                       </Button>
+                    )}
+                    {(isAdmin || (isEditor && category.creatorId === user.id)) && (
                       <Button
                         variant="danger"
                         size="small"
@@ -263,8 +267,8 @@ const CategoriesManager = () => {
                       >
                         <FiTrash2 size={16} />
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </Td>
               </Tr>
             ))}

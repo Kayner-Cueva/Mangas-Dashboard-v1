@@ -16,7 +16,7 @@ const MangaSchema = z.object({
   slug: z.string().min(1),
   description: z.string().optional(),
   coverUrl: z.string().url().optional(),
-  author: z.string().optional(),
+  author: z.string().optional().nullable(),
   status: z.nativeEnum(MangaStatus).optional(),
   ageRating: z.nativeEnum(AgeRating).optional(),
   isModerated: z.boolean().optional(),
@@ -90,6 +90,7 @@ router.post('/', async (req, res, next) => {
         isModerated: mangaData.isModerated,
         isAdult: mangaData.isAdult,
         sourceId: mangaData.sourceId,
+        creatorId: (req as any).user.id,
         categories: { create: categoryIds.map((categoryId: string) => ({ categoryId })) },
         stats: { create: {} },
       },
@@ -134,6 +135,20 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const user = (req as any).user;
+
+    const manga = await prisma.manga.findUnique({
+      where: { id },
+      select: { creatorId: true }
+    });
+
+    if (!manga) return res.status(404).json({ error: 'Not found' });
+
+    // Si es EDITOR, solo puede borrar si es el creador
+    if (user.role === Role.EDITOR && manga.creatorId !== user.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este manga' });
+    }
+
     await prisma.manga.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }

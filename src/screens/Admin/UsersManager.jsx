@@ -181,7 +181,7 @@ const UsersManager = () => {
                                     </RoleSelect>
                                 </Td>
                                 <Td>
-                                    <Badge active={u.isActive}>
+                                    <Badge $active={u.isActive}>
                                         {u.isActive ? 'Activo' : 'Inactivo'}
                                     </Badge>
                                 </Td>

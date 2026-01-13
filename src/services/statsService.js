@@ -9,9 +9,9 @@ export const getDashboardStats = async () => {
       totalMangas: summary.mangas || 0,
       totalChapters: summary.chapters || 0,
       totalCategories: summary.categories || 0,
-      totalUsers: 0,
-      recentMangas: 0,
-      recentChapters: 0,
+      totalUsers: summary.users || 0,
+      recentMangas: summary.recentMangas || 0,
+      recentChapters: summary.recentChapters || 0,
       totalViews: summary.totalViews || 0,
     }
 

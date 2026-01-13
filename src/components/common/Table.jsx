@@ -47,7 +47,7 @@ export const Badge = styled.span`
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  background: ${props => props.active ? '#10b98120' : '#ef444420'};
-  color: ${props => props.active ? '#10b981' : '#ef4444'};
-  border: 1px solid ${props => props.active ? '#10b98140' : '#ef444440'};
+  background: ${props => props.$active ? '#10b98120' : '#ef444420'};
+  color: ${props => props.$active ? '#10b981' : '#ef4444'};
+  border: 1px solid ${props => props.$active ? '#10b98140' : '#ef444440'};
 `

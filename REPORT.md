@@ -1,6 +1,6 @@
 # 📊 Reporte de Evolución del Proyecto
 
-Este reporte resume las fases de desarrollo completadas para el Manga Dashboard v1.0.
+Este reporte resume las fases de desarrollo completadas para el Manga Dashboard v1.1.
 
 ## 🚀 Fases de Desarrollo
 
@@ -34,8 +34,31 @@ Este reporte resume las fases de desarrollo completadas para el Manga Dashboard 
 - Creación del panel de Gestión de Usuarios (activación/desactivación y cambio de roles).
 - Implementación de herramientas de exportación de metadata (JSON/CSV).
 
+### Fase 7: Estabilización de Autenticación
+- Resolución de errores 401 mediante un sistema de Refresh Tokens estable.
+- Eliminación de condiciones de carrera (race conditions) en el refresco de sesión.
+- Mejora de la persistencia de sesión en recargas de página.
+
+### Fase 8: Optimización de UX y Gestión de Contenido
+- Implementación de **Sidebar Colapsable Minimalista** para mejorar el espacio de trabajo.
+- Mejora del flujo de creación de mangas con selectores dinámicos de fuentes.
+- Corrección de validaciones estrictas (Autor opcional, IDs de fuentes flexibles).
+- Adición de campos faltantes (Autor) en el catálogo.
+
+### Fase 9: Rendimiento y Depuración
+- Implementación de **Debounce** en búsquedas para reducir carga en la API.
+- Reordenamiento de middlewares para reportes de errores (CORS/Rate Limit) más claros.
+- Corrección de advertencias de `styled-components` y errores de hidratación.
+- Actualización de estadísticas del dashboard con datos reales de usuarios y actividad.
+
+### Fase 10: Propiedad de Contenido y RBAC Granular
+- Implementación de **Propiedad de Contenido** (`creatorId`) en Mangas, Capítulos, Categorías y Fuentes.
+- Restricción de eliminación para el rol `EDITOR`: solo pueden borrar lo que ellos mismos han creado.
+- Ampliación de permisos para `EDITOR`: ahora pueden crear categorías y fuentes.
+- Actualización semántica del rol `USER` como exclusivo para la APK móvil.
+
 ## ✅ Estado Final
-El proyecto ha alcanzado la versión **1.0.0**. Se considera una plataforma web administrativa completa, segura y lista para producción.
+El proyecto ha alcanzado la versión **1.2.0**. Se considera una plataforma web administrativa de nivel empresarial, con un sistema de permisos robusto y una arquitectura de producto clara.
 
 ---
 *Fin del reporte.*

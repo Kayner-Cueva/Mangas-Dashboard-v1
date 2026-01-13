@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize([Role.ADMIN]));
+router.use(authorize([Role.ADMIN, Role.EDITOR]));
 
 const SourceSchema = z.object({
   name: z.string().min(1),
@@ -26,7 +26,12 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const data = SourceSchema.parse(req.body);
-    const created = await prisma.source.create({ data });
+    const created = await prisma.source.create({
+      data: {
+        ...data,
+        creatorId: (req as any).user.id
+      }
+    });
     res.status(201).json(created);
   } catch (err) { next(err); }
 });
@@ -43,6 +48,20 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const user = (req as any).user;
+
+    const source = await prisma.source.findUnique({
+      where: { id },
+      select: { creatorId: true }
+    });
+
+    if (!source) return res.status(404).json({ error: 'Not found' });
+
+    // Si es EDITOR, solo puede borrar si es el creador
+    if (user.role === Role.EDITOR && source.creatorId !== user.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta fuente' });
+    }
+
     await prisma.source.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }

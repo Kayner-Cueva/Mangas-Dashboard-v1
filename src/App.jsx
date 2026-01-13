@@ -9,6 +9,7 @@ import { theme } from './theme/theme'
 
 // Screens
 import Login from './screens/Auth/Login'
+import AdminLogin from './screens/Auth/AdminLogin'
 import AdminDashboard from './screens/Admin/AdminDashboard'
 import MangasManager from './screens/Admin/MangasManager'
 import ChaptersManager from './screens/Admin/ChaptersManager'
@@ -25,6 +26,7 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/panel-admin-x7k9p2" element={<AdminLogin />} />
             <Route
               path="/"
               element={
@@ -54,7 +56,7 @@ function App() {
               <Route
                 path="categories"
                 element={
-                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ProtectedRoute allowedRoles={['ADMIN', 'EDITOR']}>
                     <CategoriesManager />
                   </ProtectedRoute>
                 }
@@ -62,7 +64,7 @@ function App() {
               <Route
                 path="sources"
                 element={
-                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ProtectedRoute allowedRoles={['ADMIN', 'EDITOR']}>
                     <SourcesManager />
                   </ProtectedRoute>
                 }

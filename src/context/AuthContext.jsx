@@ -55,11 +55,11 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, role) => {
     try {
       const data = await apiFetch('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role }),
       })
       return { data, error: null }
     } catch (error) {

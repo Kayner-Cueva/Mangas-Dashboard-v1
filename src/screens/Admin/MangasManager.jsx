@@ -15,6 +15,7 @@ import {
   assignCategoriesToManga
 } from '../../services/mangaService'
 import { getAllCategories } from '../../services/categoryService'
+import { listSources } from '../../services/sourceService'
 import toast from 'react-hot-toast'
 import { SkeletonRect } from '../../components/common/Skeleton'
 import { useAuth } from '../../context/AuthContext'
@@ -22,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { LoadingSpinner, EmptyState } from '../../components/common'
 import { exportToJSON, exportToCSV } from '../../utils/exportUtils'
-import { FiDownload } from 'react-icons/fi'
+import { FiDownload, FiPlus, FiEdit2, FiTrash2, FiShield } from 'react-icons/fi'
 
 const Container = styled.div`
   padding: ${theme.spacing.xl};
@@ -174,7 +175,8 @@ const mangaSchema = z.object({
   titulo: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
   descripcion: z.string().optional(),
   portada_url: z.string().url('Debe ser una URL válida'),
-  fuente_id: z.string().uuid('ID de fuente inválido').optional().or(z.literal('')),
+  autor: z.string().optional().or(z.literal('')),
+  fuente_id: z.string().optional().or(z.literal('')),
   ageRating: z.enum(['EVERYONE', 'TEEN', 'MATURE', 'ADULT']),
   isModerated: z.boolean().default(false)
 })
@@ -195,6 +197,7 @@ const LegalBanner = styled.div`
 const MangasManager = () => {
   const [mangas, setMangas] = useState([])
   const [categories, setCategories] = useState([])
+  const [sources, setSources] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingManga, setEditingManga] = useState(null)
@@ -211,6 +214,7 @@ const MangasManager = () => {
       titulo: '',
       descripcion: '',
       portada_url: '',
+      autor: '',
       fuente_id: '',
       ageRating: 'EVERYONE',
       isModerated: false
@@ -220,14 +224,21 @@ const MangasManager = () => {
   useEffect(() => {
     loadMangas()
     loadCategories()
+    loadSources()
   }, [])
 
+  // Debounce para la búsqueda
   useEffect(() => {
-    if (searchTerm) {
-      handleSearch(searchTerm)
-    } else {
-      loadMangas()
+    if (!searchTerm.trim()) {
+      if (!loading) loadMangas()
+      return
     }
+
+    const timeoutId = setTimeout(() => {
+      handleSearch(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
   const loadMangas = async () => {
@@ -246,6 +257,13 @@ const MangasManager = () => {
     const { data, error } = await getAllCategories()
     if (!error && data) {
       setCategories(data)
+    }
+  }
+
+  const loadSources = async () => {
+    const { data, error } = await listSources()
+    if (!error && data) {
+      setSources(data)
     }
   }
 
@@ -271,6 +289,7 @@ const MangasManager = () => {
         titulo: manga.title || manga.titulo || '',
         descripcion: manga.description || manga.descripcion || '',
         portada_url: manga.coverUrl || manga.portada_url || '',
+        autor: manga.author || manga.autor || '',
         fuente_id: manga.sourceId || manga.fuente_id || '',
         ageRating: manga.ageRating || 'EVERYONE',
         isModerated: manga.isModerated || false
@@ -282,6 +301,7 @@ const MangasManager = () => {
         titulo: '',
         descripcion: '',
         portada_url: '',
+        autor: '',
         fuente_id: '',
         ageRating: 'EVERYONE',
         isModerated: false
@@ -379,20 +399,20 @@ const MangasManager = () => {
         <Header>
           <Title>Gestión de Mangas</Title>
           <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', flex: 1, maxWidth: '600px' }}>
-            <SkeletonRect width="100%" height="45px" borderRadius={theme.borderRadius.md} />
+            <SkeletonRect width="100%" height="45px" $borderRadius={theme.borderRadius.md} />
           </div>
         </Header>
         <MangasGrid>
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} style={{ overflow: 'hidden' }}>
-              <SkeletonRect height="350px" borderRadius={`${theme.borderRadius.md} ${theme.borderRadius.md} 0 0`} />
+              <SkeletonRect height="350px" $borderRadius={`${theme.borderRadius.md} ${theme.borderRadius.md} 0 0`} />
               <div style={{ padding: theme.spacing.md }}>
                 <SkeletonRect height="1.5rem" width="80%" style={{ marginBottom: theme.spacing.sm }} />
                 <SkeletonRect height="1rem" width="100%" style={{ marginBottom: theme.spacing.xs }} />
                 <SkeletonRect height="1rem" width="90%" style={{ marginBottom: theme.spacing.md }} />
                 <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-                  <SkeletonRect height="32px" width="80px" borderRadius={theme.borderRadius.sm} />
-                  <SkeletonRect height="32px" width="80px" borderRadius={theme.borderRadius.sm} />
+                  <SkeletonRect height="32px" width="80px" $borderRadius={theme.borderRadius.sm} />
+                  <SkeletonRect height="32px" width="80px" $borderRadius={theme.borderRadius.sm} />
                 </div>
               </div>
             </Card>
@@ -478,7 +498,7 @@ const MangasManager = () => {
                       <FiEdit2 size={16} /> Editar
                     </Button>
                   )}
-                  {isAdmin && (
+                  {(isAdmin || (user?.role === 'EDITOR' && manga.creatorId === user.id)) && (
                     <Button
                       variant="danger"
                       size="small"
@@ -536,6 +556,14 @@ const MangasManager = () => {
             disabled={isSubmitting}
           />
 
+          <Input
+            label="Autor"
+            placeholder="Ej: Masashi Kishimoto"
+            {...register('autor')}
+            error={errors.autor?.message}
+            disabled={isSubmitting}
+          />
+
           <FormRow>
             <div>
               <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: '0.875rem', fontWeight: 500 }}>
@@ -561,13 +589,22 @@ const MangasManager = () => {
           </FormRow>
 
           <div>
-            <Input
-              label="ID de Fuente (UUID) - Opcional"
-              placeholder="123e4567-e89b-12d3-a456-426614174000"
-              {...register('fuente_id')}
-              error={errors.fuente_id?.message}
-              disabled={isSubmitting}
-            />
+            <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: '0.875rem', fontWeight: 500 }}>
+              Fuente (Opcional)
+            </label>
+            <Select {...register('fuente_id')} disabled={isSubmitting}>
+              <option value="">Seleccionar fuente...</option>
+              {sources.map(source => (
+                <option key={source.id} value={source.id}>
+                  {source.name || source.nombre}
+                </option>
+              ))}
+            </Select>
+            {errors.fuente_id && (
+              <span style={{ color: theme.colors.danger, fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                {errors.fuente_id.message}
+              </span>
+            )}
           </div>
 
           {categories.length > 0 && (
