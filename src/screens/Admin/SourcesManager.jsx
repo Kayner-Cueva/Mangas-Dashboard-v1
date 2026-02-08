@@ -125,20 +125,73 @@ const SourcesManager = () => {
     load()
   }
 
-  const handleExport = (format) => {
-    const exportData = sources.map(s => ({
-      id: s.id,
-      nombre: s.name,
-      url: s.baseUrl,
-      descripcion: s.description,
-      activo: s.isActive,
-      creado: s.createdAt
-    }))
+  const handleExport = async (format) => {
+    if (format !== 'json') {
+      toast.error('Solo exportación JSON está soportada por el momento')
+      return // TODO: CSV
+    }
 
-    if (format === 'json') {
-      exportToJSON(exportData, 'fuentes_metadata')
-    } else {
-      exportToCSV(exportData, 'fuentes_metadata')
+    const toastId = toast.loading('Generando exportación...')
+    try {
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+      const response = await fetch(`${API_URL}/api/sources/export`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (!response.ok) throw new Error('Error en la exportación')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'fuentes_backup.json'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Exportación completada', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Falló la exportación', { id: toastId })
+    }
+  }
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const toastId = toast.loading('Importando fuentes...')
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+
+      const token = localStorage.getItem('token')
+      // Ajusta la URL si es necesario
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+      const response = await fetch(`${API_URL}/api/sources/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(json)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) throw new Error(result.error || 'Error en la importación')
+
+      toast.success(`Importación: ${result.created} creadas, ${result.updated} actualizadas`, { id: toastId })
+      load() // Recargar tabla
+    } catch (err) {
+      console.error(err)
+      toast.error('Falló la importación: Verifique el formato del JSON', { id: toastId })
+    } finally {
+      e.target.value = '' // Reset input
     }
   }
 
@@ -168,7 +221,7 @@ const SourcesManager = () => {
     return (
       <Container>
         <Header>
-          <Title>Fuentes de Mangas</Title>
+          <Title>Fuentes de Contenido</Title>
           <SkeletonRect width="150px" height="40px" $borderRadius={theme.borderRadius.md} />
         </Header>
         <TableContainer>
@@ -200,13 +253,25 @@ const SourcesManager = () => {
   return (
     <Container>
       <Header>
-        <Title>Fuentes de Mangas</Title>
+        <Title>Fuentes de Contenido</Title>
         {canEdit && (
           <Button onClick={() => handleOpenModal()}>
             <FiPlus size={20} /> Nueva Fuente
           </Button>
         )}
         <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+          <label htmlFor="import-json" style={{ display: 'flex', alignItems: 'center' }}>
+            <Input
+              type="file"
+              id="import-json"
+              accept=".json"
+              onChange={handleImport}
+              style={{ display: 'none' }}
+            />
+            <Button as="span" variant="outline" size="small" title="Importar JSON" style={{ cursor: 'pointer' }}>
+              Importar JSON
+            </Button>
+          </label>
           <Button variant="outline" size="small" onClick={() => handleExport('json')} title="Exportar JSON">
             <FiDownload size={16} /> JSON
           </Button>
@@ -333,7 +398,7 @@ const SourcesManager = () => {
           </div>
         </form>
       </Modal>
-    </Container>
+    </Container >
   )
 }
 

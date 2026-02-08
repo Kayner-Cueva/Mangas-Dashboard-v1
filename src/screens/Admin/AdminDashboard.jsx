@@ -158,12 +158,12 @@ const AdminDashboard = () => {
     <Container>
       <Header>
         <Title>Dashboard de Administración</Title>
-        <Subtitle>Vista general de tu plataforma de mangas</Subtitle>
+        <Subtitle>Vista general</Subtitle>
       </Header>
 
       <StatsGrid>
         {renderStatCard(
-          'Total de Mangas',
+          'Total de Contenido',
           stats?.totalMangas,
           <FiBook size={24} />,
           theme.colors.primary,
@@ -207,7 +207,7 @@ const AdminDashboard = () => {
             </div>
           ) : (
             <p style={{ color: theme.colors.text.secondary }}>
-              {stats?.recentMangas} mangas y {stats?.recentChapters} capítulos agregados en los últimos 7 días.
+              {stats?.recentMangas} contenido y {stats?.recentChapters} capítulos agregados en los últimos 7 días.
             </p>
           )}
         </RecentCard>

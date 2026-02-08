@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { PrismaClient, RequestStatus, Role } from '@prisma/client';
+import { Router, Response, NextFunction } from 'express';
+import { PrismaClient, Role } from '@prisma/client';
 import { z } from 'zod';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -11,12 +11,12 @@ const DeletionRequestSchema = z.object({
 });
 
 // Endpoint público (o autenticado por el usuario) para solicitar eliminación
-router.post('/me/delete-request', authenticate, async (req: any, res, next) => {
+router.post('/me/delete-request', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { reason } = DeletionRequestSchema.parse(req.body);
         const request = await prisma.userDeletionRequest.create({
             data: {
-                userId: req.user.id,
+                userId: req.user?.id as string,
                 reason,
             }
         });
@@ -25,7 +25,7 @@ router.post('/me/delete-request', authenticate, async (req: any, res, next) => {
 });
 
 // Endpoint administrativo para ver solicitudes
-router.get('/deletion-requests', authenticate, authorize([Role.ADMIN]), async (_req, res, next) => {
+router.get('/deletion-requests', authenticate, authorize([Role.ADMIN]), async (_req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const requests = await prisma.userDeletionRequest.findMany({
             include: { user: { select: { email: true } } },
@@ -38,7 +38,7 @@ router.get('/deletion-requests', authenticate, authorize([Role.ADMIN]), async (_
 // --- NUEVAS RUTAS ADMINISTRATIVAS ---
 
 // Listar todos los usuarios
-router.get('/', authenticate, authorize([Role.ADMIN]), async (_req, res, next) => {
+router.get('/', authenticate, authorize([Role.ADMIN]), async (_req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const users = await prisma.user.findMany({
             select: {
@@ -46,6 +46,9 @@ router.get('/', authenticate, authorize([Role.ADMIN]), async (_req, res, next) =
                 email: true,
                 role: true,
                 isActive: true,
+                isBanned: true,
+                banReason: true,
+                adminNote: true,
                 lastLogin: true,
                 createdAt: true,
                 updatedAt: true
@@ -57,7 +60,7 @@ router.get('/', authenticate, authorize([Role.ADMIN]), async (_req, res, next) =
 });
 
 // Cambiar rol de usuario
-router.patch('/:id/role', authenticate, authorize([Role.ADMIN]), async (req, res, next) => {
+router.patch('/:id/role', authenticate, authorize([Role.ADMIN]), async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { role } = z.object({ role: z.nativeEnum(Role) }).parse(req.body);
         const user = await prisma.user.update({
@@ -70,13 +73,32 @@ router.patch('/:id/role', authenticate, authorize([Role.ADMIN]), async (req, res
 });
 
 // Cambiar estado de usuario (activar/desactivar)
-router.patch('/:id/status', authenticate, authorize([Role.ADMIN]), async (req, res, next) => {
+router.patch('/:id/status', authenticate, authorize([Role.ADMIN]), async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { isActive } = z.object({ isActive: z.boolean() }).parse(req.body);
         const user = await prisma.user.update({
             where: { id: req.params.id },
             data: { isActive },
             select: { id: true, email: true, isActive: true }
+        });
+        res.json(user);
+    } catch (err) { next(err); }
+});
+
+// Banear/Desbanear usuario o actualizar nota
+router.patch('/:id/moderation', authenticate, authorize([Role.ADMIN]), async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const schema = z.object({
+            isBanned: z.boolean().optional(),
+            banReason: z.string().nullable().optional(),
+            adminNote: z.string().nullable().optional(),
+        });
+        const data = schema.parse(req.body);
+
+        const user = await prisma.user.update({
+            where: { id: req.params.id },
+            data,
+            select: { id: true, email: true, isBanned: true, adminNote: true }
         });
         res.json(user);
     } catch (err) { next(err); }

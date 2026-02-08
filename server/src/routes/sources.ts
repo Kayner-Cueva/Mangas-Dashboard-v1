@@ -16,6 +16,84 @@ const SourceSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+// EXPORT: Obtener todas las fuentes en JSON
+router.get('/export', async (req, res, next) => {
+  try {
+    const sources = await prisma.source.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Preparar JSON descargable
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="fuentes_backup.json"');
+    res.send(JSON.stringify(sources, null, 2));
+  } catch (err) { next(err); }
+});
+
+// IMPORT: Recibir JSON array y hacer upsert
+router.post('/import', async (req, res, next) => {
+  try {
+    // Esperamos un array de fuentes
+    const sourcesData = req.body;
+
+    if (!Array.isArray(sourcesData)) {
+      return res.status(400).json({ error: 'El formato debe ser un array JSON' });
+    }
+
+    const results = {
+      total: sourcesData.length,
+      created: 0,
+      updated: 0,
+      errors: 0
+    };
+
+    // Procesamos secuencialmente para evitar locks (aunque en Sources no suele pasar)
+    for (const source of sourcesData) {
+      if (!source.name || !source.baseUrl) {
+        results.errors++;
+        continue;
+      }
+
+      try {
+        // Buscamos por nombre (que es unique)
+        const existing = await prisma.source.findUnique({
+          where: { name: source.name }
+        });
+
+        if (existing) {
+          // Actualizamos
+          await prisma.source.update({
+            where: { id: existing.id },
+            data: {
+              baseUrl: source.baseUrl,
+              description: source.description,
+              isActive: source.isActive !== undefined ? source.isActive : existing.isActive
+            }
+          });
+          results.updated++;
+        } else {
+          // Creamos
+          await prisma.source.create({
+            data: {
+              name: source.name,
+              baseUrl: source.baseUrl,
+              description: source.description,
+              isActive: source.isActive !== undefined ? source.isActive : true,
+              creatorId: (req as any).user.id // Asignamos al usuario que importa
+            }
+          });
+          results.created++;
+        }
+      } catch (err) {
+        console.error(`Error importing source ${source.name}:`, err);
+        results.errors++;
+      }
+    }
+
+    res.json({ message: 'Importación completada', ...results });
+  } catch (err) { next(err); }
+});
+
 router.get('/', async (_req, res, next) => {
   try {
     const sources = await prisma.source.findMany({ orderBy: { createdAt: 'desc' } });

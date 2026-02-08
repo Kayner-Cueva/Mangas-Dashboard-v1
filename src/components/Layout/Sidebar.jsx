@@ -10,7 +10,8 @@ import {
   FiLogOut,
   FiMenu,
   FiX,
-  FiUsers
+  FiUsers,
+  FiSettings
 } from 'react-icons/fi'
 
 const SidebarContainer = styled.aside`
@@ -224,8 +225,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
       <SidebarContainer $isOpen={isOpen} $isCollapsed={isCollapsed}>
         <SidebarHeader $isCollapsed={isCollapsed}>
           <Logo $isCollapsed={isCollapsed}>
-            <FiBook size={24} />
-            <span>Panel Mangas</span>
+            <span>Panel Contenido</span>
           </Logo>
           {!isCollapsed && (
             <CloseButton onClick={onClose}>
@@ -246,7 +246,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
             </NavItem>
             <NavItem>
               <NavLinkStyled to="/mangas" onClick={onClose} $isCollapsed={isCollapsed}>
-                <FiBook /> <span>Mangas</span>
+                <FiBook /> <span>Contenido</span>
               </NavLinkStyled>
             </NavItem>
             <NavItem>
@@ -269,11 +269,18 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onToggleCollapse }) => {
               </>
             )}
             {user?.role === 'ADMIN' && (
-              <NavItem>
-                <NavLinkStyled to="/users" onClick={onClose} $isCollapsed={isCollapsed}>
-                  <FiUsers /> <span>Usuarios</span>
-                </NavLinkStyled>
-              </NavItem>
+              <>
+                <NavItem>
+                  <NavLinkStyled to="/users" onClick={onClose} $isCollapsed={isCollapsed}>
+                    <FiUsers /> <span>Usuarios</span>
+                  </NavLinkStyled>
+                </NavItem>
+                <NavItem>
+                  <NavLinkStyled to="/settings" onClick={onClose} $isCollapsed={isCollapsed}>
+                    <FiSettings /> <span>Configuración</span>
+                  </NavLinkStyled>
+                </NavItem>
+              </>
             )}
           </NavList>
         </Nav>

@@ -172,11 +172,12 @@ const CheckboxLabel = styled.label`
 
 
 const mangaSchema = z.object({
-  titulo: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
-  descripcion: z.string().optional(),
-  portada_url: z.string().url('Debe ser una URL válida'),
-  autor: z.string().optional().or(z.literal('')),
-  fuente_id: z.string().optional().or(z.literal('')),
+  title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
+  slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres'),
+  description: z.string().optional(),
+  coverUrl: z.string().url('Debe ser una URL válida'),
+  author: z.string().optional().or(z.literal('')),
+  sourceId: z.string().optional().or(z.literal('')),
   ageRating: z.enum(['EVERYONE', 'TEEN', 'MATURE', 'ADULT']),
   isModerated: z.boolean().default(false)
 })
@@ -208,18 +209,32 @@ const MangasManager = () => {
   const isEditor = user?.role === 'EDITOR'
   const canEdit = isAdmin || isEditor
 
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(mangaSchema),
     defaultValues: {
-      titulo: '',
-      descripcion: '',
-      portada_url: '',
-      autor: '',
-      fuente_id: '',
+      title: '',
+      slug: '',
+      description: '',
+      coverUrl: '',
+      author: '',
+      sourceId: '',
       ageRating: 'EVERYONE',
       isModerated: false
     }
   })
+
+  // Auto-generate slug from title
+  const watchedTitle = watch('title')
+  useEffect(() => {
+    if (!editingManga && watchedTitle) {
+      const generatedSlug = watchedTitle
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+      setValue('slug', generatedSlug, { shouldValidate: true })
+    }
+  }, [watchedTitle, setValue, editingManga])
 
   useEffect(() => {
     loadMangas()
@@ -245,7 +260,7 @@ const MangasManager = () => {
     setLoading(true)
     const { data, error } = await getAllMangas()
     if (error) {
-      toast.error('Error al cargar los mangas')
+      toast.error('Error al cargar el contenido')
       console.error(error)
     } else {
       setMangas(data || [])
@@ -286,23 +301,25 @@ const MangasManager = () => {
     if (manga) {
       setEditingManga(manga)
       reset({
-        titulo: manga.title || manga.titulo || '',
-        descripcion: manga.description || manga.descripcion || '',
-        portada_url: manga.coverUrl || manga.portada_url || '',
-        autor: manga.author || manga.autor || '',
-        fuente_id: manga.sourceId || manga.fuente_id || '',
+        title: manga.title || '',
+        slug: manga.slug || '',
+        description: manga.description || '',
+        coverUrl: manga.coverUrl || '',
+        author: manga.author || '',
+        sourceId: manga.sourceId || '',
         ageRating: manga.ageRating || 'EVERYONE',
         isModerated: manga.isModerated || false
       })
-      setSelectedCategories(manga.categories?.map(mc => mc.category?.id) || manga.manga_categorias?.map(mc => mc.categorias?.id) || [])
+      setSelectedCategories(manga.categories?.map(mc => mc.category?.id) || [])
     } else {
       setEditingManga(null)
       reset({
-        titulo: '',
-        descripcion: '',
-        portada_url: '',
-        autor: '',
-        fuente_id: '',
+        title: '',
+        slug: '',
+        description: '',
+        coverUrl: '',
+        author: '',
+        sourceId: '',
         ageRating: 'EVERYONE',
         isModerated: false
       })
@@ -333,43 +350,104 @@ const MangasManager = () => {
       return
     }
 
-    toast.success(editingManga ? 'Manga actualizado exitosamente' : 'Manga creado exitosamente')
+    toast.success(editingManga ? 'Contenido actualizado exitosamente' : 'Contenido creado exitosamente')
     handleCloseModal()
     loadMangas()
   }
 
-  const handleExport = (format) => {
-    const exportData = mangas.map(m => ({
-      id: m.id,
-      titulo: m.title || m.titulo,
-      slug: m.slug,
-      descripcion: m.description || m.descripcion,
-      autor: m.author || m.autor,
-      estado: m.status,
-      clasificacion: m.ageRating,
-      moderado: m.isModerated,
-      adulto: m.isAdult,
-      creado: m.createdAt
-    }))
+  const handleExport = async (format) => {
+    if (format !== 'json') {
+      toast.error('Solo exportación JSON está soportada por el momento')
+      return // TODO: Implement CSV backend support
+    }
 
-    if (format === 'json') {
-      exportToJSON(exportData, 'mangas_metadata')
-    } else {
-      exportToCSV(exportData, 'mangas_metadata')
+    const toastId = toast.loading('Generando exportación...')
+    try {
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+      const response = await fetch(`${API_URL}/api/mangas/export?format=json`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) throw new Error('Error en la exportación')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'mangas_backup.json'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Exportación completada', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Falló la exportación', { id: toastId })
     }
   }
 
 
+  const handleImport = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const toastId = toast.loading('Importando Contenido (esto puede tardar)...')
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+      const response = await fetch(`${API_URL}/api/mangas/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(json)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) throw new Error(result.error || 'Error en la importación')
+
+      toast.success(`Importación completada`, { id: toastId })
+      if (result.errors > 0) {
+        toast((t) => (
+          <span>
+            {result.updated + result.created} procesados.
+            <br />
+            ⚠️ {result.errors} errores.
+            <button onClick={() => toast.dismiss(t.id)}>OK</button>
+          </span>
+        ), { duration: 6000 })
+      }
+
+      loadMangas()
+    } catch (err) {
+      console.error(err)
+      toast.error('Falló la importación: Verifique el formato del JSON', { id: toastId })
+    } finally {
+      e.target.value = ''
+    }
+  }
+
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este manga?')) {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este contenido?')) {
       return
     }
 
     const { error } = await deleteManga(id)
     if (error) {
-      toast.error('Error al eliminar el manga')
+      toast.error('Error al eliminar el contenido')
     } else {
-      toast.success('Manga eliminado exitosamente')
+      toast.success('Contenido eliminado exitosamente')
       loadMangas()
     }
   }
@@ -397,7 +475,7 @@ const MangasManager = () => {
     return (
       <Container>
         <Header>
-          <Title>Gestión de Mangas</Title>
+          <Title>Gestión de Contenidos</Title>
           <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', flex: 1, maxWidth: '600px' }}>
             <SkeletonRect width="100%" height="45px" $borderRadius={theme.borderRadius.md} />
           </div>
@@ -425,21 +503,35 @@ const MangasManager = () => {
   return (
     <Container>
       <Header>
-        <Title>Gestión de Mangas</Title>
+        <Title>Gestión de Contenidos</Title>
         <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', flex: 1, maxWidth: '600px' }}>
           <SearchContainer>
             <Input
               type="text"
-              placeholder="Buscar mangas..."
+              placeholder="Buscar contenido..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ flex: 1 }}
             />
           </SearchContainer>
           {canEdit && (
-            <Button onClick={() => handleOpenModal()}>
-              <FiPlus size={20} /> Nuevo Manga
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button onClick={() => handleOpenModal()}>
+                <FiPlus size={20} /> Nuevo Contenido
+              </Button>
+              <label htmlFor="import-manga-json">
+                <Input
+                  type="file"
+                  id="import-manga-json"
+                  accept=".json"
+                  onChange={handleImport}
+                  style={{ display: 'none' }}
+                />
+                <Button as="span" variant="outline" title="Importar JSON" style={{ cursor: 'pointer' }}>
+                  Importar
+                </Button>
+              </label>
+            </div>
           )}
           <div style={{ display: 'flex', gap: theme.spacing.xs }}>
             <Button variant="outline" size="small" onClick={() => handleExport('json')} title="Exportar JSON">
@@ -459,8 +551,8 @@ const MangasManager = () => {
 
       {mangas.length === 0 ? (
         <EmptyState
-          title="No hay mangas disponibles"
-          message="Comienza agregando un nuevo manga a tu catálogo."
+          title="No hay contenido disponibles"
+          message="Comienza agregando un nuevo contenido a tu catálogo."
         />
       ) : (
         <MangasGrid>
@@ -531,18 +623,27 @@ const MangasManager = () => {
         footer={modalFooter}
       >
         <Form id="manga-form" onSubmit={handleSubmit(onSubmit)}>
-          <Input
-            label="Título *"
-            placeholder="Ej: Naruto"
-            {...register('titulo')}
-            error={errors.titulo?.message}
-            disabled={isSubmitting}
-          />
+          <FormRow>
+            <Input
+              label="Título *"
+              placeholder="Ej: Naruto"
+              {...register('title')}
+              error={errors.title?.message}
+              disabled={isSubmitting}
+            />
+            <Input
+              label="Slug *"
+              placeholder="ej-naruto"
+              {...register('slug')}
+              error={errors.slug?.message}
+              disabled={isSubmitting}
+            />
+          </FormRow>
 
           <Textarea
             label="Descripción"
             placeholder="Descripción del manga..."
-            {...register('descripcion')}
+            {...register('description')}
             rows={4}
             disabled={isSubmitting}
           />
@@ -551,16 +652,16 @@ const MangasManager = () => {
             label="URL de Portada *"
             type="url"
             placeholder="https://ejemplo.com/imagen.jpg"
-            {...register('portada_url')}
-            error={errors.portada_url?.message}
+            {...register('coverUrl')}
+            error={errors.coverUrl?.message}
             disabled={isSubmitting}
           />
 
           <Input
             label="Autor"
             placeholder="Ej: Masashi Kishimoto"
-            {...register('autor')}
-            error={errors.autor?.message}
+            {...register('author')}
+            error={errors.author?.message}
             disabled={isSubmitting}
           />
 
@@ -592,17 +693,17 @@ const MangasManager = () => {
             <label style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: '0.875rem', fontWeight: 500 }}>
               Fuente (Opcional)
             </label>
-            <Select {...register('fuente_id')} disabled={isSubmitting}>
+            <Select {...register('sourceId')} disabled={isSubmitting}>
               <option value="">Seleccionar fuente...</option>
               {sources.map(source => (
                 <option key={source.id} value={source.id}>
-                  {source.name || source.nombre}
+                  {source.name}
                 </option>
               ))}
             </Select>
-            {errors.fuente_id && (
+            {errors.sourceId && (
               <span style={{ color: theme.colors.danger, fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                {errors.fuente_id.message}
+                {errors.sourceId.message}
               </span>
             )}
           </div>

@@ -137,19 +137,66 @@ const CategoriesManager = () => {
     loadCategories()
   }
 
-  const handleExport = (format) => {
-    const exportData = categories.map(c => ({
-      id: c.id,
-      nombre: c.name,
-      slug: c.slug,
-      descripcion: c.description,
-      creado: c.createdAt
-    }))
+  const handleExport = async (format) => {
+    if (format !== 'json') {
+      toast.error('Solo exportación JSON está soportada por el momento')
+      return // TODO: CSV
+    }
 
-    if (format === 'json') {
-      exportToJSON(exportData, 'categorias_metadata')
-    } else {
-      exportToCSV(exportData, 'categorias_metadata')
+    const toastId = toast.loading('Generando exportación...')
+    try {
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+      const response = await fetch(`${API_URL}/api/categories/export`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (!response.ok) throw new Error('Error en la exportación')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'categorias_backup.json'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Exportación completada', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Falló la exportación', { id: toastId })
+    }
+  }
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const toastId = toast.loading('Importando categorías...')
+    try {
+      const text = await file.text()
+      let json = JSON.parse(text)
+
+      // Si viene del formato filters.json (con clave "genero")
+      if (json.genero && Array.isArray(json.genero)) {
+        json = json.genero
+      }
+
+      const result = await apiFetch('/api/categories/import', {
+        method: 'POST',
+        body: JSON.stringify(json)
+      })
+
+      toast.success(`Importación: ${result.created} creadas, ${result.updated} actualizadas`, { id: toastId })
+      loadCategories()
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Falló la importación', { id: toastId })
+    } finally {
+      e.target.value = '' // Reset input
     }
   }
 
@@ -216,6 +263,18 @@ const CategoriesManager = () => {
           </Button>
         )}
         <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+          <label htmlFor="import-cat-json" style={{ display: 'flex', alignItems: 'center' }}>
+            <Input
+              type="file"
+              id="import-cat-json"
+              accept=".json"
+              onChange={handleImport}
+              style={{ display: 'none' }}
+            />
+            <Button as="span" variant="outline" size="small" title="Importar JSON" style={{ cursor: 'pointer' }}>
+              Importar JSON
+            </Button>
+          </label>
           <Button variant="outline" size="small" onClick={() => handleExport('json')} title="Exportar JSON">
             <FiDownload size={16} /> JSON
           </Button>
@@ -277,7 +336,7 @@ const CategoriesManager = () => {
                 <Td colSpan={4}>
                   <EmptyState
                     title="No hay categorías"
-                    message="Aún no se han definido categorías para los mangas."
+                    message="Aún no se han definido categorías para el contenido."
                   />
                 </Td>
               </Tr>
@@ -311,7 +370,7 @@ const CategoriesManager = () => {
           />
         </form>
       </Modal>
-    </Container>
+    </Container >
   )
 }
 

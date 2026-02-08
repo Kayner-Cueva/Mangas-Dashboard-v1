@@ -12,6 +12,7 @@ router.use(authorize([Role.ADMIN, Role.EDITOR]));
 const ChapterSchema = z.object({
   number: z.coerce.number(),
   title: z.string().optional(),
+  sipnosis: z.string().optional(),
   url_capitulo: z.string().url().optional(),
   releaseDate: z.string().datetime().optional(),
   pages: z.array(z.object({ pageNumber: z.number().int().positive(), imageUrl: z.string().url() })).optional(),
@@ -69,6 +70,7 @@ router.post('/manga/:mangaId', async (req, res, next) => {
         mangaId,
         number: data.number,
         title: data.title,
+        sipnosis: data.sipnosis,
         url_capitulo: data.url_capitulo,
         releaseDate: data.releaseDate ? new Date(data.releaseDate) : undefined,
         creatorId: (req as any).user.id,
@@ -88,6 +90,7 @@ router.put('/:id', async (req, res, next) => {
       data: {
         number: data.number,
         title: data.title,
+        sipnosis: data.sipnosis,
         url_capitulo: data.url_capitulo,
         releaseDate: data.releaseDate ? new Date(data.releaseDate) : undefined,
         ...(data.pages ? {

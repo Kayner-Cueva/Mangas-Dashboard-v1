@@ -37,6 +37,7 @@ import statsRouter from './routes/stats';
 import authRouter from './routes/auth';
 import sourcesRouter from './routes/sources';
 import usersRouter from './routes/users';
+import settingsRouter from './routes/settings';
 import { setupSwagger } from './config/swagger';
 
 setupSwagger(app);
@@ -48,6 +49,7 @@ app.use('/api/stats', statsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/sources', sourcesRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/settings', settingsRouter);
 
 // Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

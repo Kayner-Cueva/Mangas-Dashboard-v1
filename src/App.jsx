@@ -16,6 +16,7 @@ import ChaptersManager from './screens/Admin/ChaptersManager'
 import CategoriesManager from './screens/Admin/CategoriesManager'
 import SourcesManager from './screens/Admin/SourcesManager'
 import UsersManager from './screens/Admin/UsersManager'
+import Settings from './screens/Admin/Settings'
 import DMCA from './screens/Admin/DMCA'
 
 function App() {
@@ -74,6 +75,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['ADMIN']}>
                     <UsersManager />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <Settings />
                   </ProtectedRoute>
                 }
               />

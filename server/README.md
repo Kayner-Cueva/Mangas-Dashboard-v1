@@ -1,3 +1,17 @@
+# Manga Dashboard Server
+
+> [!IMPORTANT]
+> **Prisma Usage & Versioning**
+> 
+> This project uses **Prisma v5**. If you run `npx prisma` from the project root, it may default to Prisma v7, causing validation errors (like P1012).
+> 
+> **Always run Prisma commands from the `server` directory:**
+> ```bash
+> cd server
+> npm run prisma:migrate  # To apply migrations
+> npm run prisma:generate # To update the client
+> ```
+
 Backend (server) for mangas-dashboard
 
 Prerequisites

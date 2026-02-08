@@ -11,11 +11,14 @@ import {
     Badge,
     SkeletonRect,
     LoadingSpinner,
-    EmptyState
+    EmptyState,
+    Input,
+    Textarea,
+    Modal
 } from '../../components/common'
 import { apiFetch } from '../../config/apiClient'
 import toast from 'react-hot-toast'
-import { FiUser, FiShield, FiUserX, FiUserCheck, FiRefreshCw } from 'react-icons/fi'
+import { FiUser, FiShield, FiUserX, FiUserCheck, FiRefreshCw, FiSlash, FiEdit, FiInfo } from 'react-icons/fi'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -55,6 +58,9 @@ const UsersManager = () => {
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [updatingId, setUpdatingId] = useState(null)
+    const [isModModalOpen, setIsModModalOpen] = useState(false)
+    const [selectedUser, setSelectedUser] = useState(null)
+    const [modData, setModData] = useState({ isBanned: false, banReason: '', adminNote: '' })
 
     const loadUsers = async () => {
         setLoading(true)
@@ -101,6 +107,33 @@ const UsersManager = () => {
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: !currentStatus } : u))
         } catch (err) {
             toast.error('Error al cambiar estado')
+        } finally {
+            setUpdatingId(null)
+        }
+    }
+
+    const openModeration = (user) => {
+        setSelectedUser(user)
+        setModData({
+            isBanned: user.isBanned || false,
+            banReason: user.banReason || '',
+            adminNote: user.adminNote || ''
+        })
+        setIsModModalOpen(true)
+    }
+
+    const handleModerationSave = async () => {
+        setUpdatingId(selectedUser.id)
+        try {
+            await apiFetch(`/api/users/${selectedUser.id}/moderation`, {
+                method: 'PATCH',
+                body: JSON.stringify(modData)
+            })
+            toast.success('Moderación actualizada')
+            setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...modData } : u))
+            setIsModModalOpen(false)
+        } catch (err) {
+            toast.error('Error al actualizar moderación')
         } finally {
             setUpdatingId(null)
         }
@@ -193,18 +226,26 @@ const UsersManager = () => {
                                     </div>
                                 </Td>
                                 <Td>
-                                    <Button
-                                        variant={u.isActive ? 'danger' : 'success'}
-                                        size="small"
-                                        onClick={() => handleStatusToggle(u.id, u.isActive)}
-                                        disabled={updatingId === u.id}
-                                    >
-                                        {updatingId === u.id ? (
-                                            <LoadingSpinner size="14px" />
-                                        ) : (
-                                            u.isActive ? <><FiUserX size={16} /> Desactivar</> : <><FiUserCheck size={16} /> Activar</>
-                                        )}
-                                    </Button>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <Button
+                                            variant={u.isActive ? 'danger' : 'success'}
+                                            size="small"
+                                            onClick={() => handleStatusToggle(u.id, u.isActive)}
+                                            disabled={updatingId === u.id}
+                                            title={u.isActive ? 'Desactivar acceso' : 'Activar acceso'}
+                                        >
+                                            {updatingId === u.id ? <LoadingSpinner size="14px" /> : (u.isActive ? <FiUserX size={16} /> : <FiUserCheck size={16} />)}
+                                        </Button>
+                                        <Button
+                                            variant={u.isBanned ? 'danger' : 'outline'}
+                                            size="small"
+                                            onClick={() => openModeration(u)}
+                                            disabled={updatingId === u.id}
+                                            title="Moderación y Notas"
+                                        >
+                                            <FiShield size={16} />
+                                        </Button>
+                                    </div>
                                 </Td>
                             </Tr>
                         ))}
@@ -218,6 +259,65 @@ const UsersManager = () => {
                     />
                 )}
             </TableContainer>
+
+            <Modal
+                isOpen={isModModalOpen}
+                onClose={() => setIsModModalOpen(false)}
+                title={`Moderación: ${selectedUser?.email}`}
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setIsModModalOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleModerationSave} disabled={updatingId}>
+                            {updatingId ? <LoadingSpinner size="18px" /> : 'Guardar Cambios'}
+                        </Button>
+                    </>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: theme.spacing.md,
+                        backgroundColor: modData.isBanned ? `${theme.colors.error}11` : theme.colors.bg.card,
+                        borderRadius: theme.borderRadius.md,
+                        border: `1px solid ${modData.isBanned ? theme.colors.error : theme.colors.border.light}`
+                    }}>
+                        <div>
+                            <div style={{ fontWeight: 600, color: modData.isBanned ? theme.colors.error : theme.colors.text.primary }}>
+                                {modData.isBanned ? 'Usuario Baneado' : 'Usuario Activo'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: theme.colors.text.secondary }}>
+                                El baneo impide cualquier acceso a la plataforma.
+                            </div>
+                        </div>
+                        <Button
+                            variant={modData.isBanned ? 'success' : 'danger'}
+                            size="small"
+                            onClick={() => setModData({ ...modData, isBanned: !modData.isBanned })}
+                        >
+                            {modData.isBanned ? 'Quitar Baneo' : 'Banear Usuario'}
+                        </Button>
+                    </div>
+
+                    {modData.isBanned && (
+                        <Input
+                            label="Motivo del Baneo"
+                            placeholder="Escribe el motivo..."
+                            value={modData.banReason || ''}
+                            onChange={(e) => setModData({ ...modData, banReason: e.target.value })}
+                        />
+                    )}
+
+                    <Textarea
+                        label="Notas del Administrador (Privado)"
+                        placeholder="Añade información relevante sobre este usuario..."
+                        value={modData.adminNote || ''}
+                        onChange={(e) => setModData({ ...modData, adminNote: e.target.value })}
+                        rows={4}
+                    />
+                </div>
+            </Modal>
         </Container>
     )
 }

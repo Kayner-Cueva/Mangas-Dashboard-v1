@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -35,6 +36,21 @@ enum RequestStatus {
   CANCELLED
 }
 
+enum LibraryStatus {
+  READING
+  COMPLETED
+  ON_HOLD
+  DROPPED
+  PLAN_TO_READ
+}
+
+enum InteractionType {
+  VIEW
+  LIKE
+  FAVORITE
+  LIBRARY_UPDATE // New type to track when status changes
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -48,12 +64,65 @@ model User {
   interactions UserMangaInteraction[]
   refreshTokens RefreshToken[]
   deletionRequests UserDeletionRequest[]
+  readingProgress ReadingProgress[]
+  settings     UserSettings?
+  ratings      Rating[]
+  notifications Notification[]
+  
+  // Moderación (Solo Admin)
+  isBanned     Boolean  @default(false)
+  banReason    String?
+  adminNote    String?
   
   // Contenido creado
   mangas       Manga[]
   chapters     Chapter[]
   categories   Category[]
   sources      Source[]
+  
+  // Sincronización y Auditoría
+  devices      Device[]
+  auditLogs    AuditLog[]
+}
+
+model Device {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken     String?  @unique
+  deviceModel  String?
+  osVersion    String?
+  lastSyncAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // e.g., "MANGA_UPDATE", "CHAPTER_UPLOAD"
+  entityType  String   // e.g., "Manga", "Chapter"
+  entityId    String
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+model UserSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readingMode       String   @default("VERTICAL")
+  theme             String   @default("DARK")
+  incognitoMode     Boolean  @default(false)
+  notificationsEnabled Boolean @default(true)
+  language          String   @default("es")
+  updatedAt         DateTime @updatedAt
 }
 
 model UserDeletionRequest {
@@ -112,10 +181,22 @@ model Manga {
   chapters    Chapter[]
   stats       Stat?
   interactions UserMangaInteraction[]
+  readingProgress ReadingProgress[]
+  ratings      Rating[]
 
   // Propiedad
   creator      User?    @relation(fields: [creatorId], references: [id])
   creatorId    String?
+
+  // Flags Dashboard
+  isTrending   Boolean  @default(false)
+  isFeatured   Boolean  @default(false)
+  
+  // Visibilidad (Solo Admin/Editor)
+  isHidden     Boolean  @default(false)
+  
+  // Soft Delete
+  deletedAt    DateTime?
 }
 
 model MangaCategory {
@@ -133,16 +214,21 @@ model Chapter {
   mangaId     String
   number      Decimal
   title       String?
+  sipnosis    String?
   url_capitulo String?
   releaseDate DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   pages       ChapterPage[]
+  readingProgress ReadingProgress[]
 
   // Propiedad
   creator      User?    @relation(fields: [creatorId], references: [id])
   creatorId    String?
+
+  // Soft Delete
+  deletedAt    DateTime?
 }
 
 model ChapterPage {
@@ -172,15 +258,61 @@ model UserMangaInteraction {
   manga     Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
   mangaId   String
   type      InteractionType
+  
+  // Para biblioteca personalizada
+  status    LibraryStatus? 
+  
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
-  @@index([userId, mangaId])
+  @@unique([userId, mangaId])
 }
 
-enum InteractionType {
-  VIEW
-  LIKE
-  FAVORITE
+model Rating {
+  id        String   @id @default(cuid())
+  value     Int      
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mangaId   String
+  manga     Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@unique([userId, mangaId])
+}
+
+model ReadingProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mangaId     String
+  manga       Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  
+  lastPage    Int      @default(0)
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, chapterId])
+  @@index([userId, mangaId])
+  
+  // Soft Delete
+  deletedAt   DateTime?
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?  // Ej: /manga/slug/chapter/1
+  createdAt DateTime @default(now())
 }
 
 model Source {
@@ -197,4 +329,12 @@ model Source {
   // Propiedad
   creator      User?    @relation(fields: [creatorId], references: [id])
   creatorId    String?
+}
+
+model GlobalSettings {
+  id                String   @id @default("system_config")
+  maintenanceMode   Boolean  @default(false)
+  allowRegistration Boolean  @default(true)
+  announcement      String?
+  updatedAt         DateTime @updatedAt
 }

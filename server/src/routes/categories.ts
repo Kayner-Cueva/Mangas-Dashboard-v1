@@ -14,6 +14,77 @@ const CategorySchema = z.object({
   slug: z.string().min(1),
 });
 
+// EXPORT: Obtener todas las categorías
+router.get('/export', async (req, res, next) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="categorias_backup.json"');
+    res.send(JSON.stringify(categories, null, 2));
+  } catch (err) { next(err); }
+});
+
+// IMPORT: Recibir JSON array y hacer upsert
+router.post('/import', async (req, res, next) => {
+  try {
+    const categoriesData = req.body;
+
+    if (!Array.isArray(categoriesData)) {
+      return res.status(400).json({ error: 'El formato debe ser un array JSON' });
+    }
+
+    const results = {
+      total: categoriesData.length,
+      created: 0,
+      updated: 0,
+      errors: 0
+    };
+
+    for (const category of categoriesData) {
+      if (!category.name || !category.slug) {
+        results.errors++;
+        continue;
+      }
+
+      try {
+        // Buscamos por slug (que es unique)
+        const existing = await prisma.category.findUnique({
+          where: { slug: category.slug }
+        });
+
+        if (existing) {
+          // Actualizar (en este caso solo nombre si fuera necesario, pero el slug es lo que manda)
+          await prisma.category.update({
+            where: { id: existing.id },
+            data: {
+              name: category.name
+            }
+          });
+          results.updated++;
+        } else {
+          // Crear
+          await prisma.category.create({
+            data: {
+              name: category.name,
+              slug: category.slug,
+              creatorId: (req as any).user.id
+            }
+          });
+          results.created++;
+        }
+      } catch (err) {
+        console.error(`Error importing category ${category.slug}:`, err);
+        results.errors++;
+      }
+    }
+
+    res.json({ message: 'Importación completada', ...results });
+  } catch (err) { next(err); }
+});
+
 router.get('/', async (_req, res, next) => {
   try {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });

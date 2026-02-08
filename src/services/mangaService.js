@@ -7,7 +7,7 @@ export const getAllMangas = async (params = {}) => {
     const data = await apiFetch(`/api/mangas${query ? `?${query}` : ''}`)
     return { data: data.items ?? data, error: null }
   } catch (error) {
-    console.error('Error obteniendo mangas:', error)
+    console.error('Error obteniendo el contenido:', error)
     return { data: null, error }
   }
 }
@@ -18,7 +18,7 @@ export const getMangaById = async (id) => {
     const data = await apiFetch(`/api/mangas/${id}`)
     return { data, error: null }
   } catch (error) {
-    console.error('Error obteniendo manga:', error)
+    console.error('Error obteniendo el contenido:', error)
     return { data: null, error }
   }
 }
@@ -32,11 +32,12 @@ export const searchMangas = async (term) => {
 export const createManga = async (mangaData) => {
   try {
     const payload = {
-      title: mangaData.titulo?.trim(),
-      description: mangaData.descripcion?.trim() || null,
-      coverUrl: mangaData.portada_url?.trim() || null,
-      slug: (mangaData.titulo || '').toLowerCase().trim().replace(/\s+/g, '-'),
-      author: mangaData.autor?.trim() || null,
+      title: (mangaData.title || mangaData.titulo)?.trim(),
+      description: (mangaData.description || mangaData.descripcion)?.trim() || null,
+      coverUrl: (mangaData.coverUrl || mangaData.portada_url)?.trim() || null,
+      slug: mangaData.slug || (mangaData.title || mangaData.titulo || '').toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      author: mangaData.author || mangaData.autor?.trim() || null,
+      sourceId: mangaData.sourceId || mangaData.fuente_id || null,
       categoryIds: mangaData.categoryIds || [],
       ageRating: mangaData.ageRating || 'EVERYONE',
       isModerated: mangaData.isModerated || false,
@@ -48,7 +49,7 @@ export const createManga = async (mangaData) => {
     })
     return { data, error: null }
   } catch (error) {
-    console.error('Error creando manga:', error)
+    console.error('Error creando el contenido:', error)
     return { data: null, error }
   }
 }
@@ -57,11 +58,12 @@ export const createManga = async (mangaData) => {
 export const updateManga = async (id, updates) => {
   try {
     const payload = {
-      title: updates.titulo?.trim(),
-      description: updates.descripcion?.trim() || null,
-      coverUrl: updates.portada_url?.trim() || null,
+      title: (updates.title || updates.titulo)?.trim(),
+      description: (updates.description || updates.descripcion)?.trim() || null,
+      coverUrl: (updates.coverUrl || updates.portada_url)?.trim() || null,
       slug: updates.slug,
-      author: updates.autor?.trim() || null,
+      author: updates.author || updates.autor?.trim() || null,
+      sourceId: updates.sourceId || updates.fuente_id,
       categoryIds: updates.categoryIds,
       ageRating: updates.ageRating,
       isModerated: updates.isModerated,
@@ -76,7 +78,7 @@ export const updateManga = async (id, updates) => {
     })
     return { data, error: null }
   } catch (error) {
-    console.error('Error actualizando manga:', error)
+    console.error('Error actualizando el contenido:', error)
     return { data: null, error }
   }
 }
@@ -87,7 +89,7 @@ export const deleteManga = async (id) => {
     await apiFetch(`/api/mangas/${id}`, { method: 'DELETE' })
     return { data: true, error: null }
   } catch (error) {
-    console.error('Error eliminando manga:', error)
+    console.error('Error eliminando el contenido:', error)
     return { data: null, error }
   }
 }
@@ -98,7 +100,7 @@ export const getMangasByCategory = async (categoryId) => {
     const data = await apiFetch(`/api/mangas?category=${encodeURIComponent(categoryId)}`)
     return { data: data.items ?? data, error: null }
   } catch (error) {
-    console.error('Error obteniendo mangas por categoría:', error)
+    console.error('Error obteniendo el contenido por categoría:', error)
     return { data: null, error }
   }
 }
