@@ -86,10 +86,11 @@ router.post('/login', async (req, res, next) => {
       data: { lastLogin: new Date() }
     });
 
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax', // Required for cross-site cookies
       maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000
     });
 
@@ -140,7 +141,12 @@ router.post('/logout', async (req, res) => {
       data: { revokedAt: new Date() }
     });
   }
-  res.clearCookie('refreshToken');
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
+  });
   res.json({ ok: true });
 });
 
