@@ -9,6 +9,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy is required for secure cookies on Render/Heroku/Railway
+app.set('trust proxy', 1);
+
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 const normalizedOrigin = frontendUrl.endsWith('/') ? frontendUrl.slice(0, -1) : frontendUrl;
 
