@@ -1,6 +1,6 @@
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "mangas-dashboard",
+    "name": "gestioncontenido",
     "compatibility_date": "2026-02-08",
     "assets": {
         "directory": "./dist",
