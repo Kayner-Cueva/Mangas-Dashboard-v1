@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { z } from 'zod';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -15,7 +15,7 @@ const CategorySchema = z.object({
 });
 
 // EXPORT: Obtener todas las categorías
-router.get('/export', async (req, res, next) => {
+router.get('/export', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { name: 'asc' }
@@ -28,7 +28,7 @@ router.get('/export', async (req, res, next) => {
 });
 
 // IMPORT: Recibir JSON array y hacer upsert
-router.post('/import', async (req, res, next) => {
+router.post('/import', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const categoriesData = req.body;
 
@@ -70,7 +70,7 @@ router.post('/import', async (req, res, next) => {
             data: {
               name: category.name,
               slug: category.slug,
-              creatorId: (req as any).user.id
+              creatorId: req.user?.id
             }
           });
           results.created++;
@@ -85,27 +85,27 @@ router.post('/import', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     res.json(categories);
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = CategorySchema.parse(req.body);
     const created = await prisma.category.create({
       data: {
         ...data,
-        creatorId: (req as any).user.id
+        creatorId: req.user?.id
       }
     });
     res.status(201).json(created);
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const data = CategorySchema.partial().parse(req.body);
@@ -114,10 +114,10 @@ router.put('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const user = (req as any).user;
+    const user = req.user;
 
     const category = await prisma.category.findUnique({
       where: { id },
@@ -127,7 +127,7 @@ router.delete('/:id', async (req, res, next) => {
     if (!category) return res.status(404).json({ error: 'Not found' });
 
     // Si es EDITOR, solo puede borrar si es el creador
-    if (user.role === Role.EDITOR && category.creatorId !== user.id) {
+    if (user?.role === Role.EDITOR && category.creatorId !== user.id) {
       return res.status(403).json({ error: 'No tienes permiso para eliminar esta categoría' });
     }
 

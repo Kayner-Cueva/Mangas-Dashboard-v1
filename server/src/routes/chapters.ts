@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { z } from 'zod';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -18,7 +18,7 @@ const ChapterSchema = z.object({
   pages: z.array(z.object({ pageNumber: z.number().int().positive(), imageUrl: z.string().url() })).optional(),
 });
 
-router.get('/', async (req, res, next) => {
+router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { page = '1', limit = '25' } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page));
@@ -38,7 +38,7 @@ router.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/manga/:mangaId', async (req, res, next) => {
+router.get('/manga/:mangaId', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { mangaId } = req.params;
     const chapters = await prisma.chapter.findMany({
@@ -49,7 +49,7 @@ router.get('/manga/:mangaId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const chapter = await prisma.chapter.findUnique({
@@ -61,7 +61,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/manga/:mangaId', async (req, res, next) => {
+router.post('/manga/:mangaId', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { mangaId } = req.params;
     const data = ChapterSchema.parse(req.body);
@@ -73,7 +73,7 @@ router.post('/manga/:mangaId', async (req, res, next) => {
         sipnosis: data.sipnosis,
         url_capitulo: data.url_capitulo,
         releaseDate: data.releaseDate ? new Date(data.releaseDate) : undefined,
-        creatorId: (req as any).user.id,
+        creatorId: req.user?.id,
         pages: { create: data.pages?.map(p => ({ pageNumber: p.pageNumber, imageUrl: p.imageUrl })) || [] },
       },
     });
@@ -81,7 +81,7 @@ router.post('/manga/:mangaId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const data = ChapterSchema.partial().parse(req.body);
@@ -105,10 +105,10 @@ router.put('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const user = (req as any).user;
+    const user = req.user;
 
     const chapter = await prisma.chapter.findUnique({
       where: { id },
@@ -118,7 +118,7 @@ router.delete('/:id', async (req, res, next) => {
     if (!chapter) return res.status(404).json({ error: 'Not found' });
 
     // Si es EDITOR, solo puede borrar si es el creador
-    if (user.role === Role.EDITOR && chapter.creatorId !== user.id) {
+    if (user?.role === Role.EDITOR && chapter.creatorId !== user.id) {
       return res.status(403).json({ error: 'No tienes permiso para eliminar este capítulo' });
     }
 

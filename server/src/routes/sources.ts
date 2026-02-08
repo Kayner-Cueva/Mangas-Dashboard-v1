@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { z } from 'zod';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -17,7 +17,7 @@ const SourceSchema = z.object({
 });
 
 // EXPORT: Obtener todas las fuentes en JSON
-router.get('/export', async (req, res, next) => {
+router.get('/export', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sources = await prisma.source.findMany({
       orderBy: { createdAt: 'desc' }
@@ -31,7 +31,7 @@ router.get('/export', async (req, res, next) => {
 });
 
 // IMPORT: Recibir JSON array y hacer upsert
-router.post('/import', async (req, res, next) => {
+router.post('/import', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     // Esperamos un array de fuentes
     const sourcesData = req.body;
@@ -79,7 +79,7 @@ router.post('/import', async (req, res, next) => {
               baseUrl: source.baseUrl,
               description: source.description,
               isActive: source.isActive !== undefined ? source.isActive : true,
-              creatorId: (req as any).user.id // Asignamos al usuario que importa
+              creatorId: req.user?.id
             }
           });
           results.created++;
@@ -94,27 +94,27 @@ router.post('/import', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sources = await prisma.source.findMany({ orderBy: { createdAt: 'desc' } });
     res.json(sources);
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = SourceSchema.parse(req.body);
     const created = await prisma.source.create({
       data: {
         ...data,
-        creatorId: (req as any).user.id
+        creatorId: req.user?.id
       }
     });
     res.status(201).json(created);
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const data = SourceSchema.partial().parse(req.body);
@@ -123,10 +123,10 @@ router.put('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const user = (req as any).user;
+    const user = req.user;
 
     const source = await prisma.source.findUnique({
       where: { id },
@@ -136,7 +136,7 @@ router.delete('/:id', async (req, res, next) => {
     if (!source) return res.status(404).json({ error: 'Not found' });
 
     // Si es EDITOR, solo puede borrar si es el creador
-    if (user.role === Role.EDITOR && source.creatorId !== user.id) {
+    if (user?.role === Role.EDITOR && source.creatorId !== user.id) {
       return res.status(403).json({ error: 'No tienes permiso para eliminar esta fuente' });
     }
 

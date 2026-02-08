@@ -7,6 +7,9 @@ export interface AuthRequest extends Request {
         id: string;
         role: Role;
     };
+    query: any;
+    params: any;
+    body: any;
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {

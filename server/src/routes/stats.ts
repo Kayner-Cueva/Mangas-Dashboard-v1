@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -8,7 +8,7 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize([Role.ADMIN, Role.EDITOR]));
 
-router.get('/summary', async (_req, res, next) => {
+router.get('/summary', async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -35,7 +35,7 @@ router.get('/summary', async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/manga/:mangaId/views', async (req, res, next) => {
+router.post('/manga/:mangaId/views', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { mangaId } = req.params;
     const updated = await prisma.stat.upsert({
@@ -47,7 +47,7 @@ router.post('/manga/:mangaId/views', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/manga/:mangaId/likes', async (req, res, next) => {
+router.post('/manga/:mangaId/likes', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { mangaId } = req.params;
     const updated = await prisma.stat.upsert({
@@ -59,7 +59,7 @@ router.post('/manga/:mangaId/likes', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/manga/:mangaId/favorites', async (req, res, next) => {
+router.post('/manga/:mangaId/favorites', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { mangaId } = req.params;
     const updated = await prisma.stat.upsert({

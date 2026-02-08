@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -46,7 +46,7 @@ const generateTokens = async (userId: string, role: Role) => {
   return { accessToken, refreshToken };
 };
 
-router.post('/register', async (req, res, next) => {
+router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, role } = RegisterSchema.parse(req.body);
     const exists = await prisma.user.findUnique({ where: { email } });
@@ -65,7 +65,7 @@ router.post('/register', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = LoginSchema.parse(req.body);
     const user = await prisma.user.findUnique({ where: { email } });
@@ -98,7 +98,7 @@ router.post('/login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/refresh', async (req, res, next) => {
+router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies.refreshToken;
     if (!token) return res.status(401).json({ error: 'No refresh token' });
@@ -133,7 +133,7 @@ router.post('/refresh', async (req, res, next) => {
   }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req: Request, res: Response) => {
   const token = req.cookies.refreshToken;
   if (token) {
     await prisma.refreshToken.updateMany({
